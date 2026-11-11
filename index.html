@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b1712" />
+  <title>SKULLFALL — Padang Tengkorak</title>
+  <meta name="description" content="Game hack & slash 3D low-poly: kalahkan monster tengkorak, naik level sampai 10, dan taklukkan padang hijau." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50 10 82 28v34L50 90 18 62V28Z' fill='%23122a22' stroke='%238be0a4' stroke-width='4'/%3E%3Ccircle cx='40' cy='46' r='6' fill='%23e5dac1'/%3E%3Ccircle cx='60' cy='46' r='6' fill='%23e5dac1'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="./css/style.css" />
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./vendor/three.module.js",
+        "three/addons/": "./vendor/addons/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="app">
+    <canvas id="scene" aria-label="Dunia game 3D"></canvas>
+
+    <div id="hud" class="hud" aria-hidden="false">
+      <div class="hud-top">
+        <section class="panel player-panel" aria-label="Status karakter">
+          <div class="portrait">
+            <svg viewBox="0 0 64 64" aria-hidden="true">
+              <path d="M32 6 50 17v22L32 58 14 39V17Z" fill="#193b32" stroke="#8be0a4" stroke-width="2.5" />
+              <path d="M32 16c-7 0-11 5-11 12 0 5 2 8 4 10v6h14v-6c2-2 4-5 4-10 0-7-4-12-11-12Z" fill="#d7a173" />
+              <path d="M21 25c1-7 5-10 11-10s10 3 11 10c-4-3-7-4-11-4s-7 1-11 4Z" fill="#3a2a22" />
+              <path d="M28 42h8v7h-8Z" fill="#b98257" />
+              <path d="M18 48h28l5 9H13Z" fill="#2e6f61" />
+            </svg>
+            <span id="level-badge" class="level-badge">1</span>
+          </div>
+          <div class="player-stats">
+            <div class="player-title-row">
+              <span class="player-name">PENJELAJAH</span>
+              <span id="player-rank" class="player-rank">PEDANG PADANG</span>
+            </div>
+
+            <div class="bar health" aria-label="Kesehatan">
+              <svg class="bar-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-8-5.1-8-11a4.6 4.6 0 0 1 8-3 4.6 4.6 0 0 1 8 3c0 5.9-8 11-8 11Z"/></svg>
+              <div class="bar-track"><div id="hp-fill" class="bar-fill"></div><div class="bar-shine"></div></div>
+              <span id="hp-text" class="bar-text">100 / 100</span>
+            </div>
+
+            <div class="bar mana" aria-label="Mana">
+              <svg class="bar-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2s7 8 7 13a7 7 0 1 1-14 0c0-5 7-13 7-13Z"/></svg>
+              <div class="bar-track"><div id="mp-fill" class="bar-fill"></div><div class="bar-shine"></div></div>
+              <span id="mp-text" class="bar-text">100 / 100</span>
+            </div>
+
+            <div class="xp-row">
+              <div class="xp-track"><div id="xp-fill" class="xp-fill"></div></div>
+              <span id="xp-text" class="xp-text">0 / 35 XP</span>
+              <span id="level-max" class="level-max">MAX</span>
+            </div>
+          </div>
+        </section>
+
+        <div id="zone-pill" class="zone-pill" aria-label="Zona bahaya">
+          <span id="zone-label" class="zone-label">ZONA 1</span>
+          <span id="zone-name" class="zone-name">PADANG TENANG</span>
+          <div class="zone-track"><i id="zone-fill"></i></div>
+          <span id="zone-distance" class="zone-distance">0 m dari spawn</span>
+        </div>
+
+        <section class="panel score-panel" aria-label="Skor">
+          <div class="score-label">SKOR</div>
+          <div id="score-value" class="score-value">0</div>
+          <div class="best-row">TERBAIK <b id="best-value">0</b></div>
+          <div id="multiplier" class="multiplier">KOMBO x1.0</div>
+        </section>
+      </div>
+
+      <div class="hud-side">
+        <div class="radar-wrap" id="radar-wrap">
+          <canvas id="radar" width="184" height="184" aria-label="Peta sekitar"></canvas>
+          <span class="radar-caption">PETA PADANG</span>
+          <span class="radar-north">U</span>
+        </div>
+        <div id="combo-toast" class="combo-toast"></div>
+      </div>
+
+      <div id="toast-layer" class="toast-layer" aria-live="polite"></div>
+
+      <div class="hint" id="desktop-hint">
+        <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Gerak</span>
+        <span><kbd>J</kbd> / Klik Serang</span>
+        <span><kbd>Q</kbd> Badai Pedang</span>
+      </div>
+
+      <div class="touch-controls" id="touch-controls">
+        <div class="joystick" id="joystick">
+          <div class="joystick-ring"></div>
+          <div class="joystick-knob" id="joystick-knob"></div>
+        </div>
+        <div class="action-group">
+          <button id="skill-btn" class="action-btn skill" aria-label="Badai Pedang">
+            <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 7c2 7 8 11 8 19a8 8 0 1 1-16 0c0-8 6-12 8-19Z" fill="none" stroke="currentColor" stroke-width="3"/><path d="M24 15v22M16 24h16" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+            <span class="action-key">Q</span>
+            <span class="action-label">BADAI</span>
+            <span class="cooldown-mask" id="skill-cd"></span>
+          </button>
+          <button id="attack-btn" class="action-btn attack" aria-label="Serang">
+            <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M34 6 17 23l8 8L42 14Z" fill="currentColor" opacity=".9"/><path d="M15 25 9 31l8 8 6-6" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/></svg>
+            <span class="action-key">J</span>
+            <span class="action-label">SERANG</span>
+          </button>
+        </div>
+      </div>
+
+      <button id="mute-btn" class="mute-btn" aria-label="Suara aktif" title="Suara">
+        <svg class="icon-on" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4Z" fill="currentColor"/><path d="M16 8a5.5 5.5 0 0 1 0 8M18.5 5.5a9 9 0 0 1 0 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <svg class="icon-off" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4Z" fill="currentColor"/><path d="m16 9 5 6m0-6-5 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+
+      <div id="danger-overlay" class="danger-overlay"></div>
+      <div id="hit-flash" class="hit-flash"></div>
+      <div id="death-fade" class="death-fade"></div>
+      <div id="damage-layer" class="damage-layer"></div>
+    </div>
+
+    <div id="start-screen" class="screen start-screen">
+      <div class="start-vignette"></div>
+      <div class="start-content">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 100 100">
+              <path d="M50 9 79 25v31L50 91 21 56V25Z" fill="#122a22" stroke="#8be0a4" stroke-width="3"/>
+              <path d="M50 28c-10 0-16 7-16 17 0 7 3 11 6 14v11h20V59c3-3 6-7 6-14 0-10-6-17-16-17Z" fill="#e5dac1"/>
+              <circle cx="43" cy="47" r="4" fill="#111" /><circle cx="57" cy="47" r="4" fill="#111" />
+              <path d="M45 57h10l-2 8h-6Z" fill="#111" />
+              <path d="M34 32 26 22l12 2Zm32 0 8-10-12 2Z" fill="#d7c7a1"/>
+            </svg>
+          </div>
+          <div class="brand-text">
+            <h1>SKULL<span>FALL</span></h1>
+            <p class="brand-kicker">PADANG TENGKORAK</p>
+          </div>
+        </div>
+
+        <p class="start-copy">Melangkahlah ke padang hijau. Setiap langkah menjauh dari spawn membawa tengkorak yang lebih ganas. Naik level, kuasai badai pedang, dan pecahkan rekor.</p>
+
+        <div class="start-features">
+          <div><b>LEVEL 1—10</b><span>Tumbuh makin kuat</span></div>
+          <div><b>ZONA BERBAHAYA</b><span>Musuh naik level</span></div>
+          <div><b>REKOR ABADI</b><span>Skor terbaik tersimpan</span></div>
+        </div>
+
+        <div class="start-footer">
+          <button id="start-btn" class="primary-btn" aria-label="Start">
+            <span class="btn-glow"></span>
+            <span class="btn-icon">⚔</span>
+            <span class="btn-text">MULAI</span>
+          </button>
+          <div class="start-meta">
+            <span>SKOR TERBAIK <b id="start-best">0</b></span>
+            <span class="dot">•</span>
+            <span>WASD / JOYSTICK</span>
+            <span class="dot">•</span>
+            <span>KLIK / J</span>
+          </div>
+        </div>
+      </div>
+      <div class="start-corner left">LOW-POLY HACK &amp; SLASH</div>
+      <div class="start-corner right">V1.0</div>
+    </div>
+
+    <div id="death-screen" class="screen death-screen hidden">
+      <div class="death-vignette"></div>
+      <div class="death-panel">
+        <div class="death-mark" aria-hidden="true">
+          <svg viewBox="0 0 100 100"><path d="M50 13c-17 0-27 12-27 28 0 11 5 18 10 22v10h34V63c5-4 10-11 10-22 0-16-10-28-27-28Z" fill="none" stroke="#e6dcc4" stroke-width="4"/><circle cx="39" cy="43" r="5" fill="#e6dcc4"/><circle cx="61" cy="43" r="5" fill="#e6dcc4"/><path d="M44 57h12M45 67h10" stroke="#e6dcc4" stroke-width="4" stroke-linecap="round"/><path d="M20 20 8 7m72 13L92 7" stroke="#c9604d" stroke-width="4" stroke-linecap="round"/></svg>
+        </div>
+        <p class="death-kicker">PADANG MERATAP</p>
+        <h2>KAU TUMBANG</h2>
+        <p class="death-copy">Tengkorak menang kali ini. Mulai ulang perjalanan dari spawn — level kembali ke 1, tetapi rekor skormu tetap tersimpan.</p>
+
+        <div class="death-stats">
+          <div><span>SKOR RUN</span><b id="death-score">0</b></div>
+          <div><span>SKOR TERBAIK</span><b id="death-best">0</b></div>
+          <div><span>LEVEL TERCAPAI</span><b id="death-level">1</b></div>
+          <div><span>TENGKORAK</span><b id="death-kills">0</b></div>
+        </div>
+
+        <button id="respawn-btn" class="primary-btn respawn" aria-label="Respawn">
+          <span class="btn-glow"></span>
+          <span class="btn-icon">↺</span>
+          <span class="btn-text">RESPAWN</span>
+        </button>
+        <p class="death-note">Kembali ke spawn • Level di-reset • Skor terbaik dipertahankan</p>
+      </div>
+    </div>
+
+    <div id="loading" class="loading">
+      <div class="loading-rune">
+        <svg viewBox="0 0 100 100"><path d="M50 8 84 29v42L50 92 16 71V29Z" fill="none" stroke="#8be0a4" stroke-width="3"/><path d="M50 28v44M32 50h36" stroke="#8be0a4" stroke-width="3"/></svg>
+      </div>
+      <p>MEMBANGUN PADANG...</p>
+    </div>
+
+    <div id="webgl-error" class="webgl-error hidden">
+      <h2>WebGL tidak tersedia</h2>
+      <p>Game ini membutuhkan browser dengan dukungan WebGL. Coba Chrome, Edge, Firefox, atau Safari terbaru.</p>
+    </div>
+  </div>
+
+  <script type="module" src="./js/main.js"></script>
+</body>
+</html>
